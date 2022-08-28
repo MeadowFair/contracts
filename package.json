@@ -1,0 +1,28 @@
+{
+  "name": "cds_contract",
+  "version": "1.0.0",
+  "description": "",
+  "main": "truffle-config.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@huangtao163:cryptoera2022/cds_contract.git"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^4.7.1",
+    "@openzeppelin/contracts-upgradeable": "^4.7.1",
+    "@truffle/hdwallet-provider": "^2.0.5",
+    "axios": "^0.21.1",
+    "bignumber.js": "^9.0.1",
+    "dotenv": "^16.0.0",
+    "ethers": "^5.5.1",
+    "truffle-contract-size": "^2.0.1"
+  },
+  "author": "",
+  "license": "ISC"
+}
