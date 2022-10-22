@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity ^0.8.0;
+pragma solidity 0.8.13;
 
 import "./interfaces/IRental.sol";
 import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
-contract Test {
+contract TestContract {
     struct Info {
         bool occur;
     }
@@ -25,7 +25,7 @@ contract Test {
         infos[_index].occur = true;
     }
 
-    function getInterfaceId() external pure returns(bytes4){
-        return  type(IRental).interfaceId;
+    function getInterfaceId() external pure returns (bytes4) {
+        return type(IRental).interfaceId;
     }
 }

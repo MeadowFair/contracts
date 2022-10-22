@@ -1,22 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity ^0.8.0;
+pragma solidity 0.8.13;
 
-import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
-import "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
+import "@openzeppelin/contracts/security/Pausable.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
 import "./interfaces/ITicket.sol";
-import "./interfaces/IRental.sol";
-import "./PausableV2.sol";
 
-contract Ticket is
-    ERC1155(""),
-    PausableV2,
-    ITicket,
-    IRental,
-    Initializable,
-    IERC1155Receiver
-{
+contract Ticket is Pausable, Ownable, ITicket, ERC1155, IERC1155Receiver {
     using Strings for uint256;
     // struct tokenInfo
     struct TokenInfo {
@@ -55,14 +47,12 @@ contract Ticket is
         _address[1] miner
         _address[2] owner
      */
-    function initialize(string memory newuri, address[3] calldata _address)
-        external
-        initializer
+    constructor(string memory newuri, address[3] memory _address)
+        ERC1155(newuri)
     {
         _transferOwnership(_address[0]);
         cds = _address[1];
         miner = _address[2];
-        _setURI(newuri);
     }
 
     function name() external pure returns (string memory) {
@@ -187,7 +177,7 @@ contract Ticket is
     function isApprovedForAll(address account, address operator)
         public
         view
-        override
+        override(ERC1155, IERC1155)
         returns (bool)
     {
         return operator == cds || super.isApprovedForAll(account, operator);
@@ -282,4 +272,26 @@ contract Ticket is
     function exists(uint256 id) external view returns (bool) {
         return totalSupply(id) > 0;
     }
+
+    function expireAt(uint256 id, address user)
+        external
+        view
+        returns (uint256)
+    {
+        
+    }
+
+    function renew(
+        address user,
+        uint256 id,
+        uint256 expire
+    ) external {}
+
+    /**
+     *  transfer of usage right
+     *  - `id` The id of the current token
+     *  - `user` The user of the NFT
+     *  - `expire` The new specified period of time to rent
+     **/
+    function sublet(address to, uint256 id) external {}
 }

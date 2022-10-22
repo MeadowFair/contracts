@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
+import "./IRental.sol";
 
-interface ITicket {
+interface ITicket is IRental {
     function mint(
         address to,
         uint256 tokenId,

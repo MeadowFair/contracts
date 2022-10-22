@@ -1,36 +1,52 @@
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity ^0.8.0;
-import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
-import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
-import "./PausableV2.sol";
+pragma solidity 0.8.13;
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC777/IERC777RecipientUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/interfaces/IERC1820RegistryUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/cryptography/ECDSAUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "./interfaces/IRental.sol";
-import "./interfaces/ITicket.sol";
+import "./libraries/Helper.sol";
 
-contract NftMarket is PausableV2, Initializable {
-    using SafeERC20 for IERC20;
+contract NftMarket is OwnableUpgradeable, PausableUpgradeable {
+    using SafeERC20Upgradeable for IERC20Upgradeable;
     address public feeReceiver;
     uint256 public feeRate;
+    uint256 public id;
     mapping(address => bool) public allowToken;
-    struct SaleInfo {
-        address payToken;
-        uint256 price;
-        uint256 term;
-        uint256 amount;
-        bool rental;
+    enum STATUS {
+        IDLE,
+        SUCCESS,
+        CANCELED
     }
-    //owner => token=> token_id => RentInfo
-    mapping(address => mapping(address => mapping(uint256 => SaleInfo)))
-        public saleList;
-    event Make(address _seller, address _token, uint256 _tokenId);
-    event Cancel(address _seller, address _token, uint256 _tokenId);
-    event Dealt(
+
+    struct OrderObject {
+        address token;
+        address owner;
+        address payToken;
+        uint256 tokenId;
+        uint256 price;
+        uint256 endTime;
+        uint8 _type;
+        bytes data;
+        bool isMaker;
+        STATUS status;
+    }
+    OrderObject[] public orders;
+    //offer => orderId => [expired,price]
+    mapping(address => mapping(uint256 => uint256[2])) public offers;
+    event Order(
+        uint256 _orderId,
         address _seller,
         address _token,
-        uint256 _tokenId,
-        address _user
+        uint256 _tokenId
     );
+    event OrderCancel(uint256 _orderId);
+    event OrderDealt(uint256 _orderId, address _buyer);
+    event Offer(uint256 _orderId, address _buyer, uint256 _price);
+    event OfferDealt(uint256 _orderId, address _buyer, uint256 _price);
     event SetAllowToken(address _token, bool _allow);
     event SetFee(uint256 _fee, address _feeReceiver);
     event Withdraw(address _token, address _to, uint256 _amount);
@@ -45,119 +61,61 @@ contract NftMarket is PausableV2, Initializable {
         _transferOwnership(_owner);
     }
 
-    function make(
+    function order(
         address _token,
         uint256 _tokenId,
+        uint256 _endTime,
         address _payToken,
         uint256 _price,
-        uint256 _amount,
-        uint256 _term,
-        bool _rental
+        uint8 _type,
+        bytes calldata _data
     ) external {
         require(allowToken[_token], "token error");
-        require(_amount > 0 && _term > 0 && _price > 0);
-        IRental _ticket = IRental(_token);
-        IERC1155 _nft = IERC1155(_token);
-        bool rentable;
-        bytes4 rentalInterfaceId = type(IRental).interfaceId;
-        bytes4 erc721InterfaceId = type(IERC721).interfaceId;
-        bool isERC721 = _nft.supportsInterface(erc721InterfaceId);
-        if (isERC721) {
-            //ERC721
-            require(
-                _ticket.propertyRightOf(_tokenId) == msg.sender,
-                "not owner"
-            );
-        } else if (_nft.supportsInterface(rentalInterfaceId)) {
-            //Rentable-NFT
-            if (_rental) {
-                //for rental
-                require(
-                    _nft.balanceOf(msg.sender, _tokenId) >= _amount,
-                    "insufficient balance"
-                );
-            } else {
-                require(!ITicket(_token).frozeOf(_tokenId), "is frozed");
-            }
-            require(
-                _ticket.propertyRightOf(_tokenId) == msg.sender,
-                "not owner"
-            );
-            rentable = true;
-        } else {
-            //ERC1155
-            require(
-                _nft.balanceOf(msg.sender, _tokenId) >= _amount,
-                "insufficient balance"
-            );
-        }
-        require(
-            _nft.isApprovedForAll(msg.sender, address(this)),
-            "approve first"
+        require(_price > 0, "price is zeror");
+        Helper.checkNft(_type, _token, _tokenId, _data);
+        orders.push(
+            OrderObject({
+                token: _token,
+                owner: msg.sender,
+                payToken: _payToken,
+                tokenId: _tokenId,
+                price: _price,
+                endTime: _endTime,
+                _type: _type,
+                data: _data,
+                status: STATUS.IDLE
+            })
         );
-        require((_rental && rentable) || !_rental, "not rentable");
-        saleList[msg.sender][_token][_tokenId] = SaleInfo({
-            payToken: _payToken,
-            price: _price,
-            term: _term,
-            amount: _amount,
-            rental: _rental
-        });
-        emit Make(msg.sender, _token, _tokenId);
+        emit Order(orders.length - 1, msg.sender, _token, _tokenId);
     }
 
-    function cancel(address _token, uint256 _tokenId) external {
-        SaleInfo storage _rentInfo = saleList[msg.sender][_token][_tokenId];
-        require(_rentInfo.price > 0, "in rent");
-        delete saleList[msg.sender][_token][_tokenId];
-        emit Cancel(msg.sender, _token, _tokenId);
+    function cancel(uint256 _orderId) external {
+        OrderObject storage _order = orders[_orderId];
+        require(_order.status == STATUS.IDLE, "status error");
+        require(_order.owner == msg.sender, "status error");
+        _order.status = STATUS.CANCELED;
+        emit OrderCancel(_orderId);
     }
 
-    function take(
-        address _seller,
-        address _token,
-        uint256 _tokenId
-    ) external {
-        SaleInfo storage _saleInfo = saleList[_seller][_token][_tokenId];
-        require(_saleInfo.price > 0);
-        uint256 _fee = (_saleInfo.price * feeRate) / 10000;
-        IERC20 _payToken = IERC20(_saleInfo.payToken);
-        emit Dealt(_seller, _token, _tokenId, msg.sender);
-        _payToken.safeTransferFrom(msg.sender, _seller, _saleInfo.price - _fee);
+    function take(uint256 _orderId) external {
+        OrderObject storage _order = orders[_orderId];
+        uint256 _fee = (_order.price * feeRate) / 10000;
+        IERC20Upgradeable _payToken = IERC20Upgradeable(_order.payToken);
+        emit OrderDealt(_orderId, msg.sender);
+        _payToken.safeTransferFrom(
+            msg.sender,
+            _order.owner,
+            _order.price - _fee
+        );
         if (_fee > 0) {
             _payToken.safeTransferFrom(msg.sender, address(this), _fee);
         }
-        if (_saleInfo.rental) {
-            IRental(_token).safeRent(
-                _seller,
-                msg.sender,
-                _tokenId,
-                _saleInfo.amount,
-                block.timestamp + _saleInfo.term
-            );
-        } else {
-            IERC1155 token = IERC1155(_token);
-            bytes4 erc721InterfaceId = type(IERC721).interfaceId;
-            bool isERC721 = token.supportsInterface(erc721InterfaceId);
-            if (isERC721) {
-                IERC721(_token).safeTransferFrom(_seller, msg.sender, _tokenId);
-            } else {
-                bytes4 rentalInterfaceId = type(IRental).interfaceId;
-                bool isRentable = token.supportsInterface(rentalInterfaceId);
-                uint256 _amount = isRentable
-                    ? token.balanceOf(_seller, _tokenId)
-                    : _saleInfo.amount;
-                token.safeTransferFrom(
-                    _seller,
-                    msg.sender,
-                    _tokenId,
-                    _amount,
-                    ""
-                );
-            }
-        }
-        delete saleList[_seller][_token][_tokenId];
+        _order.status = STATUS.SUCCESS;
     }
+
+    function offer(uint256 _orderId, uint256 _price) external {}
+
+    function offerAccept(uint256 _orderId, address _buyer) external {}
 
     function setAllowToken(address _token, bool _allow) external onlyOwner {
         require(allowToken[_token] != _allow, "repeat operation");
@@ -172,7 +130,7 @@ contract NftMarket is PausableV2, Initializable {
     }
 
     function withdraw(
-        IERC20 _token,
+        IERC20Upgradeable _token,
         address _to,
         uint256 _amount
     ) external {
@@ -180,5 +138,19 @@ contract NftMarket is PausableV2, Initializable {
         require(_amount > 0, "amount error");
         _token.safeTransfer(_to, _amount);
         emit Withdraw(address(_token), _to, _amount);
+    }
+
+    /**
+     * @dev called by the owner to pause, triggers stopped state
+     */
+    function pause() public onlyOwner whenNotPaused {
+        _pause();
+    }
+
+    /**
+     * @dev called by the owner to unpause, returns to normal state
+     */
+    function unpause() public onlyOwner whenPaused {
+        pause();
     }
 }
