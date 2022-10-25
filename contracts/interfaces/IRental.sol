@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
-import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
-import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
+import "@openzeppelin/contracts-upgradeable/utils/introspection/IERC165Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC1155/IERC1155Upgradeable.sol";
 
 ///  Note: the ERC-165 identifier for this interface is 0xd4613e9f.
-interface IRental is IERC165, IERC1155 {
+interface IRental is IERC165Upgradeable, IERC1155Upgradeable {
     /**
      * @notice This emits when user rent NFT
      * - `id` The id of the current token
@@ -99,5 +99,9 @@ interface IRental is IERC165, IERC1155 {
      *  - `user` The user of the NFT
      *  - `expire` The new specified period of time to rent
      **/
-    function sublet(address to, uint256 id) external;
+    function sublet(
+        address from,
+        address to,
+        uint256 id
+    ) external;
 }
