@@ -33,6 +33,7 @@ library Helper {
 
     /// @param _type 0:EIP-721,EIP-3525 OR EIP-4907 sale; 1:EIP-4907 rental; 2:EIP-1155;
     /// 3:EIP-5187 sale; 4:EIP-5187 rental; 5:EIP-5187 sublet;
+    /// @param _data 1:[_timestamp] 2:[_amount] 4:[_amount,_timestamp] 5:[_amount]
     function checkNft(
         uint8 _type,
         address _nft,
@@ -46,6 +47,8 @@ library Helper {
             _interfaceId = type(IERC4907).interfaceId;
         } else if (_type == 2) {
             _interfaceId = type(IERC1155Upgradeable).interfaceId;
+        } else if (_type <= 5) {
+            _interfaceId = type(IRental).interfaceId;
         } else {
             revert("type error");
         }
@@ -80,7 +83,7 @@ library Helper {
         } else if (_type == 2) {
             uint256 _amount = abi.decode(_data, (uint256));
             require(
-                _amount > 0 && nft.balanceOf(msg.sender, _tokenId) == _amount,
+                _amount > 0 && nft.balanceOf(msg.sender, _tokenId) >= _amount,
                 "amount error"
             );
         } else if (_type == 3) {
@@ -111,6 +114,7 @@ library Helper {
 
     /// @param _type 0:EIP-721,EIP-3525 OR EIP-4907 sale; 1:EIP-4907 rental; 2:EIP-1155;
     /// 3:EIP-5187 sale; 4:EIP-5187 rental; 5:EIP-5187 sublet; 6:EIP-renew
+    /// @param _data 1:[_timestamp] 2:[_amount] 4:[_amount,_timestamp] 5:[_amount,_timestamp] 6:[_amount,_timestamp]
     function checkNftOffer(
         uint8 _type,
         address _nft,
@@ -159,7 +163,11 @@ library Helper {
                 (uint256, uint256)
             );
             require(_amount > 0 && _timestamp > block.timestamp, "data error");
-            require(nft.balanceOf(msg.sender, _tokenId) == 0, "balance error");
+            require(
+                nft.propertyRightOf(_tokenId) == msg.sender ||
+                    nft.balanceOf(msg.sender, _tokenId) == 0,
+                "balance error"
+            );
         } else if (_type == 6) {
             (uint256 _amount, uint256 _timestamp) = abi.decode(
                 _data,
@@ -167,7 +175,7 @@ library Helper {
             );
             require(_amount > 0 && _timestamp > block.timestamp, "data error");
             require(nft.balanceOf(msg.sender, _tokenId) > 0, "balance error");
-            require(nft.propertyRightOf(_tokenId) != msg.sender, "is owner");
+            require(nft.propertyRightOf(_tokenId) != msg.sender, "caller is owner");
         }
     }
 

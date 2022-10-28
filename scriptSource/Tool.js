@@ -1,9 +1,8 @@
 'use strict';
 const { BigNumber } = require('@ethersproject/bignumber');
 const BN = require('bn.js');
-const fs = require("fs");
+const fs = require('fs');
 class Tool {
-
     static getNetwork() {
         let network = '';
         let params = process.argv.slice(2);
@@ -20,30 +19,31 @@ class Tool {
 
     static getContracts() {
         const network = this.getNetwork();
-        return require("../contracts-" + network + ".json");
+        return require('../contracts-' + network + '.json');
     }
 
-    static async saveContracts(contracts) {
-        const network = this.getNetwork();
-        return await fs.writeFileSync(__dirname + "/../contracts-" + network + ".json",
-            JSON.stringify(contracts, null, "\t"));
+    static async saveContracts(contracts, network) {
+        if (network.includes('-fork')) {
+            return;
+        }
+        return await fs.writeFileSync(__dirname + '/../contracts-' + network + '.json', JSON.stringify(contracts, null, '\t'));
     }
-
 
     static getConfig() {
         const network = this.getNetwork();
-        return require("../config-" + network + ".json");
+        return require('../config-' + network + '.json');
     }
 
-    static async saveConfig(contracts) {
-        const network = this.getNetwork();
-        return await fs.writeFileSync(__dirname + "/../config-" + network + ".json",
-            JSON.stringify(contracts, null, "\t"));
+    static async saveConfig(contracts, network) {
+        if (network.includes('-fork')) {
+            return;
+        }
+        return await fs.writeFileSync(__dirname + '/../config-' + network + '.json', JSON.stringify(contracts, null, '\t'));
     }
 
     static getTest() {
         const network = this.getNetwork();
-        return require("../test-" + network + ".json");
+        return require('../test-' + network + '.json');
     }
 
     static printReceipt(name, receipt) {
