@@ -36,9 +36,9 @@ contract NftMarket is OwnableUpgradeable {
     }
     //nft token => NftInfo
     mapping(address => NftInfo) public nftInfos;
-    //nft token => paytoken => amount
+    //nft token => payToken => amount
     mapping(address => mapping(address => uint256)) public creatorEarning;
-    //paytoken => amount
+    //payToken => amount
     mapping(address => uint256) public platformFee;
     event Order(
         uint256 _orderId,
@@ -65,12 +65,11 @@ contract NftMarket is OwnableUpgradeable {
     event SetAllowToken(address _token, bool _allow);
     event SetFee(uint256 _fee, address _feeReceiver);
     event Withdraw(address _token, address _to, uint256 _amount);
-    event CreatorEaringWithdraw(
+    event CreatorEarningWithdraw(
         address _token,
         address _payToken,
         uint256 _amount
     );
-
     event WithdrawPlatformFee(address _payToken, uint256 _amount);
     event SetNftInfo(address _nft);
 
@@ -193,19 +192,20 @@ contract NftMarket is OwnableUpgradeable {
         address _token,
         uint256 _price,
         address _payToken
-    ) internal returns (uint256 _fee, uint256 _creatorEarnings) {
+    ) internal returns (uint256, uint256) {
         NftInfo storage _nftInfo = nftInfos[_token];
         uint256 _feeRate = feeRate;
         if (_nftInfo.feeRate > 0) {
             _feeRate = _nftInfo.feeRate;
         }
-        _creatorEarnings;
+        uint256 _creatorEarnings;
         if (_nftInfo.creatorEarningsRate > 0) {
             _creatorEarnings = (_price * _nftInfo.creatorEarningsRate) / 10000;
             creatorEarning[_token][_payToken] += _creatorEarnings;
         }
-        _fee = (_price * _feeRate) / 10000;
+        uint256 _fee = (_price * _feeRate) / 10000;
         platformFee[_payToken] += _fee;
+        return (_fee,_creatorEarnings);
     }
 
     function offerAccept(address _user, uint256 _orderId) external {
@@ -277,14 +277,14 @@ contract NftMarket is OwnableUpgradeable {
         emit SetAllowToken(_token, _allow);
     }
 
-    function creatorEaringWithdraw(address _token, address _payToken) external {
+    function CreatorEarningWithdraw(address _token, address _payToken) external {
         NftInfo storage _nftInfo = nftInfos[_token];
         require(_nftInfo.creator == msg.sender, "call error");
         uint256 _amount = creatorEarning[_token][_payToken];
         require(_amount > 0, "amount is zero");
         creatorEarning[_token][_payToken] = 0;
         Helper.safeTransfer(_payToken, payable(msg.sender), _amount);
-        emit CreatorEaringWithdraw(_token, _payToken, _amount);
+        emit CreatorEarningWithdraw(_token, _payToken, _amount);
     }
 
     function setNftInfo(
