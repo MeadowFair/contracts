@@ -277,7 +277,7 @@ contract NftMarket is OwnableUpgradeable {
         emit SetAllowToken(_token, _allow);
     }
 
-    function CreatorEarningWithdraw(address _token, address _payToken) external {
+    function creatorEarningWithdraw(address _token, address _payToken) external {
         NftInfo storage _nftInfo = nftInfos[_token];
         require(_nftInfo.creator == msg.sender, "call error");
         uint256 _amount = creatorEarning[_token][_payToken];
