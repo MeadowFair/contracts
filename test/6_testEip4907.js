@@ -22,7 +22,7 @@ contract('testEip4907', function (accounts) {
         await market.setNftInfo(ticket.address, false, accounts[2], feeRate, creatorEarningsRate);
         let _token = ticket.address;
         let _tokenId = 1;
-        let _endTime = Date.now() + 86400;
+        let _endTime = parseInt(Date.now() / 1000) + 86400;
         let _payToken = contracts.payToken;
         let _price = BigNumber(50).multipliedBy(1e18).toFixed(0);
         /// @param _type 0:EIP-721,EIP-3525 OR EIP-4907 sale; 1:EIP-4907 rental; 2:EIP-1155;
@@ -34,7 +34,7 @@ contract('testEip4907', function (accounts) {
         await market.make(_token, _tokenId, _endTime, _payToken, _price, _type, _data, _isProvideNft);
         let taker_balance1 = await usdt.balanceOf(accounts[1]);
         let maker_balance1 = await usdt.balanceOf(accounts[0]);
-        await market.take(orderId, {
+        await market.take(orderId, accounts[1], {
             from: accounts[1],
         });
         assert.equal(await ticket.ownerOf(_tokenId), accounts[1], 'nft owner error');
@@ -55,7 +55,7 @@ contract('testEip4907', function (accounts) {
         let cal_creator = BigNumber(_price).multipliedBy(creatorEarningsRate).dividedBy(10000).toFixed(0);
         assert.equal(actual_creator, cal_creator, 'creator amount error');
         let creator_balance1 = await usdt.balanceOf(accounts[2]);
-        await market.creatorEaringWithdraw(_token, contracts.payToken, {
+        await market.creatorEarningWithdraw(_token, contracts.payToken, {
             from: accounts[2],
         });
         let creator_balance2 = await usdt.balanceOf(accounts[2]);
@@ -74,18 +74,20 @@ contract('testEip4907', function (accounts) {
         await market.setNftInfo(ticket.address, false, accounts[2], feeRate, creatorEarningsRate);
         let _token = ticket.address;
         let _tokenId = 1;
-        let _endTime = Date.now() + 86400;
+        let _endTime = parseInt(Date.now() / 1000) + 86400;
         let _payToken = contracts.payToken;
         let _price = BigNumber(100).multipliedBy(1e18).toFixed(0);
         /// @param _type 0:EIP-721,EIP-3525 OR EIP-4907 sale; 1:EIP-4907 rental; 2:EIP-1155;
         /// 3:EIP-5187 sale; 4:EIP-5187 rental; 5:EIP-5187 sublet;
         let _type = 1;
-        let _data = web3.eth.abi.encodeParameters(['uint256'], [Date.now() + 86400]);
+        let _data = web3.eth.abi.encodeParameters(['uint256'], [86400]);
         let _isProvideNft = true;
         const orderId = 2;
         await market.make(_token, _tokenId, _endTime, _payToken, _price, _type, _data, _isProvideNft);
         let taker_balance1 = await usdt.balanceOf(accounts[1]);
-        await market.offer(orderId, [BigNumber(50).multipliedBy(1e18).toFixed(0), Date.now() + 200], {
+        let period = 86400 * 2;
+        let transfer_amount = 0;
+        await market.offer(orderId, [BigNumber(50).multipliedBy(1e18).toFixed(0), parseInt(Date.now() / 1000) + 200, period, transfer_amount], {
             from: accounts[1],
         });
         _price = BigNumber(50).multipliedBy(1e18).toFixed(0);
@@ -94,7 +96,7 @@ contract('testEip4907', function (accounts) {
         let before_creator = (await market.creatorEarning(_token, contracts.payToken)).toString();
         await market.offerAccept(accounts[1], orderId);
         assert.equal(await ticket.ownerOf(_tokenId), accounts[0], 'nft owner error');
-        assert.equal(await ticket.userOf(_tokenId), accounts[1], 'nft owner error');
+        assert.equal(await ticket.userOf(_tokenId), accounts[1], 'nft user error');
         let taker_balance2 = await usdt.balanceOf(accounts[1]);
         let maker_balance2 = await usdt.balanceOf(accounts[0]);
         let actual_taker_amount = BigNumber(taker_balance1.toString()).minus(taker_balance2.toString()).toFixed(0);
@@ -112,7 +114,7 @@ contract('testEip4907', function (accounts) {
         let cal_creator = BigNumber(_price).multipliedBy(creatorEarningsRate).dividedBy(10000).plus(before_creator).toFixed(0);
         assert.equal(actual_creator, cal_creator, 'creator amount error');
         let creator_balance1 = await usdt.balanceOf(accounts[2]);
-        await market.creatorEaringWithdraw(_token, contracts.payToken, {
+        await market.creatorEarningWithdraw(_token, contracts.payToken, {
             from: accounts[2],
         });
         let creator_balance2 = await usdt.balanceOf(accounts[2]);
@@ -134,13 +136,13 @@ contract('testEip4907', function (accounts) {
         await market.setNftInfo(ticket.address, false, accounts[2], feeRate, creatorEarningsRate);
         let _token = ticket.address;
         let _tokenId = 1;
-        let _endTime = Date.now() + 86400;
+        let _endTime = parseInt(Date.now() / 1000) + 86400;
         let _payToken = contracts.payToken;
         let _price = BigNumber(50).multipliedBy(1e18).toFixed(0);
         /// @param _type 0:EIP-721,EIP-3525 OR EIP-4907 sale; 1:EIP-4907 rental; 2:EIP-1155;
         /// 3:EIP-5187 sale; 4:EIP-5187 rental; 5:EIP-5187 sublet;
         let _type = 1;
-        let _data = web3.eth.abi.encodeParameters(['uint256'], [Date.now() + 86400]);
+        let _data = web3.eth.abi.encodeParameters(['uint256'], [parseInt(Date.now() / 1000) + 86400]);
         let _isProvideNft = false;
         let taker_balance1 = await usdt.balanceOf(accounts[1]);
         let maker_balance1 = await usdt.balanceOf(accounts[0]);
@@ -149,7 +151,7 @@ contract('testEip4907', function (accounts) {
         await market.make(_token, _tokenId, _endTime, _payToken, _price, _type, _data, _isProvideNft, {
             from: accounts[1],
         });
-        await market.take(3, {
+        await market.take(3, constants.AddressZero, {
             from: accounts[0],
         });
         assert.equal(await ticket.ownerOf(_tokenId), accounts[0], 'nft owner error');
@@ -171,7 +173,7 @@ contract('testEip4907', function (accounts) {
         let cal_creator = BigNumber(_price).multipliedBy(creatorEarningsRate).dividedBy(10000).plus(before_creator).toFixed(0);
         assert.equal(actual_creator, cal_creator, 'creator amount error');
         let creator_balance1 = await usdt.balanceOf(accounts[2]);
-        await market.creatorEaringWithdraw(_token, contracts.payToken, {
+        await market.creatorEarningWithdraw(_token, contracts.payToken, {
             from: accounts[2],
         });
         let creator_balance2 = await usdt.balanceOf(accounts[2]);

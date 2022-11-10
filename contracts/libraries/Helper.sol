@@ -33,7 +33,7 @@ library Helper {
 
     /// @param _type 0:EIP-721,EIP-3525 OR EIP-4907 sale; 1:EIP-4907 rental; 2:EIP-1155;
     /// 3:EIP-5187 sale; 4:EIP-5187 rental; 5:EIP-5187 sublet;
-    /// @param _data 1:[_timestamp] 2:[_amount] 4:[_amount,_timestamp] 5:[_amount]
+    /// @param _data 1:[_period] 2:[_amount] 4:[_amount,_period] 5:[_amount,_timestamp]
     function checkNft(
         uint8 _type,
         address _nft,
@@ -78,8 +78,8 @@ library Helper {
             );
         }
         if (_type == 1) {
-            uint64 _timestamp = abi.decode(_data, (uint64));
-            require(block.timestamp < _timestamp, "timestamp error");
+            uint64 _period = abi.decode(_data, (uint64));
+            require(_period > 0, "period error");
         } else if (_type == 2) {
             uint256 _amount = abi.decode(_data, (uint256));
             require(
@@ -89,20 +89,23 @@ library Helper {
         } else if (_type == 3) {
             require(nft.propertyRightOf(_tokenId) == msg.sender, "not owner");
         } else if (_type == 4) {
-            (uint256 _amount, uint256 _timestamp) = abi.decode(
+            (uint256 _amount, uint256 _period) = abi.decode(
                 _data,
                 (uint256, uint256)
             );
-            require(block.timestamp < _timestamp, "timestamp error");
+            require(_period > 0, "period error");
             require(nft.propertyRightOf(_tokenId) == msg.sender, "not owner");
             require(
                 _amount > 0 && nft.balanceOf(msg.sender, _tokenId) > _amount,
                 "amount error"
             );
         } else if (_type == 5) {
-            uint256 _amount = abi.decode(_data, (uint256));
+            (uint256 _amount, uint256 _timestamp) = abi.decode(
+                _data,
+                (uint256, uint256)
+            );
             require(
-                block.timestamp < nft.expireAt(_tokenId, msg.sender),
+                _timestamp == nft.expireAt(_tokenId, msg.sender),
                 "timestamp error"
             );
             require(
@@ -114,7 +117,7 @@ library Helper {
 
     /// @param _type 0:EIP-721,EIP-3525 OR EIP-4907 sale; 1:EIP-4907 rental; 2:EIP-1155;
     /// 3:EIP-5187 sale; 4:EIP-5187 rental; 5:EIP-5187 sublet; 6:EIP-renew
-    /// @param _data 1:[_timestamp] 2:[_amount] 4:[_amount,_timestamp] 5:[_amount,_timestamp] 6:[_amount,_timestamp]
+    /// @param _data 1:[_period] 2:[_amount] 4:[_amount,_period] 5:[_amount,_timestamp] 6:[_amount,_timestamp]
     function checkNftOffer(
         uint8 _type,
         address _nft,
@@ -139,19 +142,19 @@ library Helper {
         );
         IRental nft = IRental(_nft);
         if (_type == 1) {
-            uint64 _timestamp = abi.decode(_data, (uint64));
-            require(block.timestamp < _timestamp, "timestamp error");
+            uint64 _period = abi.decode(_data, (uint64));
+            require(_period > 0, "period error");
         } else if (_type == 2) {
             uint256 _amount = abi.decode(_data, (uint256));
             require(_amount > 0, "amount error");
         } else if (_type == 3) {
             require(nft.propertyRightOf(_tokenId) != msg.sender, "is owner");
         } else if (_type == 4) {
-            (uint256 _amount, uint256 _timestamp) = abi.decode(
+            (uint256 _amount, uint256 _period) = abi.decode(
                 _data,
                 (uint256, uint256)
             );
-            require(block.timestamp < _timestamp, "timestamp error");
+            require(_period > 0, "period error");
             require(nft.propertyRightOf(_tokenId) != msg.sender, "is owner");
             require(
                 _amount > 0 && nft.balanceOf(msg.sender, _tokenId) == 0,
@@ -175,7 +178,10 @@ library Helper {
             );
             require(_amount > 0 && _timestamp > block.timestamp, "data error");
             require(nft.balanceOf(msg.sender, _tokenId) > 0, "balance error");
-            require(nft.propertyRightOf(_tokenId) != msg.sender, "caller is owner");
+            require(
+                nft.propertyRightOf(_tokenId) != msg.sender,
+                "caller is owner"
+            );
         }
     }
 
@@ -193,8 +199,12 @@ library Helper {
         if (_type == 0) {
             IERC721Upgradeable(_nft).safeTransferFrom(_from, _to, _tokenId);
         } else if (_type == 1) {
-            uint64 _timestamp = abi.decode(_data, (uint64));
-            IERC4907(_nft).setUser(_tokenId, _to, _timestamp);
+            uint64 _period = abi.decode(_data, (uint64));
+            IERC4907(_nft).setUser(
+                _tokenId,
+                _to,
+                _period + uint64(block.timestamp)
+            );
         } else if (_type == 2) {
             uint256 _amount = abi.decode(_data, (uint256));
             nft.safeTransferFrom(_from, _to, _tokenId, _amount, "");
@@ -207,12 +217,18 @@ library Helper {
                 ""
             );
         } else if (_type == 4) {
-            (uint256 _amount, uint256 _timestamp) = abi.decode(
+            (uint256 _amount, uint256 _period) = abi.decode(
                 _data,
                 (uint256, uint256)
             );
-            require(block.timestamp < _timestamp, "timestamp error");
-            nft.safeRent(_from, _to, _tokenId, _amount, _timestamp);
+            require(_period > 0, "period error");
+            nft.safeRent(
+                _from,
+                _to,
+                _tokenId,
+                _amount,
+                block.timestamp + _period
+            );
         } else if (_type == 5) {
             (uint256 _amount, uint256 _timestamp) = abi.decode(
                 _data,
