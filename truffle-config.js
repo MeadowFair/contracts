@@ -42,11 +42,11 @@ module.exports = {
             network_id: '*',
             timeoutBlocks: 200,
         },
-        kcctest: {
+        goerli: {
             // provider: () => new HDWalletProvider(MNEMONIC, 'wss://rpc-ws-testnet.kcc.network'),
             // websockets: true,
-            provider: () => new HDWalletProvider(MNEMONIC, 'https://rpc-testnet.kcc.network'),
-            network_id: 322,
+            provider: () => new HDWalletProvider(MNEMONIC, 'https://goerli.infura.io/v3/56c5a245c16f4fe392b078a69e004a0b'),
+            network_id: 5,
             networkCheckTimeout: 1000 * 60 * 10,
             timeoutBlocks: 200,
             deploymentPollingInterval: 4000,

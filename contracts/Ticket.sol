@@ -30,12 +30,6 @@ contract Ticket is
     event Mint(uint256 _tokenId);
     event SetGreyTokenId(uint256 _tokenId, bool _allow);
     event SetURI(string _newuri);
-    event TransferOwner(
-        address from,
-        address to,
-        uint256[] ids,
-        uint256[] amounts
-    );
 
     function initialize(string memory newuri, address _owner)
         external
@@ -147,6 +141,7 @@ contract Ticket is
         }
         expireAt[id][from] = 0;
         _safeTransferFrom(from, to, id, _balance, "");
+        emit Sublet(id, from, to);
     }
 
     function mint(
@@ -185,8 +180,8 @@ contract Ticket is
             );
             _tokenInfo.owner = to;
             expireAt[ids[i]][to] = 0;
+            emit TransferPropertyRightOf(from, to, ids[i]);
         }
-        emit TransferOwner(from, to, ids, amounts);
     }
 
     function setGreyTokenId(uint256 _tokenId, bool _allow) external onlyOwner {

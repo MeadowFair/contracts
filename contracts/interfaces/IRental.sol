@@ -19,6 +19,8 @@ interface IRental is IERC165Upgradeable, IERC1155Upgradeable {
         uint256 expire
     );
 
+    event TransferPropertyRightOf(address from, address to, uint256 id);
+
     /**
      * MUST trigger on any successful call to `renew(address user,uint256 id)`
      *  - `id` The id of the current token

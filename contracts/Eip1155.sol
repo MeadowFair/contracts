@@ -6,7 +6,8 @@ import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 contract Eip1155 is ERC1155 {
     event Mint(uint256 _tokenId);
 
-    constructor() ERC1155("") {}
+    constructor() ERC1155("https://nft.silks.io/metadata/c1/") {
+    }
 
     function mint(
         address to,

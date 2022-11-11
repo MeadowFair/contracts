@@ -18,6 +18,9 @@ contract Eip4907 is ERC721, IERC4907 {
         ERC721(name_, symbol_)
     {}
 
+    function _baseURI() internal pure override returns (string memory) {
+        return "ipfs://Qmb6HgHH89GCdkGgJyEVBGTgSMQUnFkxSsc1QGp5XcedVq/";
+    }
 
     function mint(address to, uint256 tokenId) external {
         _mint(to, tokenId);

@@ -6,10 +6,13 @@ import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 contract Eip721 is ERC721 {
     event Mint(uint256 _tokenId);
 
-    constructor(
-        string memory name_,
-        string memory symbol_
-    ) ERC721(name_, symbol_) {}
+    constructor(string memory name_, string memory symbol_)
+        ERC721(name_, symbol_)
+    {}
+
+    function _baseURI() internal pure override returns (string memory) {
+        return "https://api.puffverse.pro/nft/genesis/";
+    }
 
     function mint(address to, uint256 tokenId) external {
         _mint(to, tokenId);
