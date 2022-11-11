@@ -32,41 +32,6 @@ contract('testEip5187', function (accounts) {
         let _data = Buffer.from('');
         let _isProvideNft = true;
         await market.make(_token, _tokenId, _endTime, _payToken, _price, _type, _data, _isProvideNft);
-        let taker_balance1 = await usdt.balanceOf(accounts[1]);
-        let period = 0;
-        let transfer_amount = 0;
-        await market.offer(orderId, [BigNumber(50).multipliedBy(1e18).toFixed(0), parseInt(Date.now() / 1000) + 200, period, transfer_amount], {
-            from: accounts[1],
-        });
-        _price = BigNumber(50).multipliedBy(1e18).toFixed(0);
-        let maker_balance1 = await usdt.balanceOf(accounts[0]);
-        let before_platform = (await market.platformFee(contracts.payToken)).toString();
-        let before_creator = (await market.creatorEarning(_token, contracts.payToken)).toString();
-        await market.offerAccept(accounts[1], orderId);
-        assert.equal(await ticket.propertyRightOf(_tokenId), accounts[1], 'nft owner error');
-        let taker_balance2 = await usdt.balanceOf(accounts[1]);
-        let maker_balance2 = await usdt.balanceOf(accounts[0]);
-        let actual_taker_amount = BigNumber(taker_balance1.toString()).minus(taker_balance2.toString()).toFixed(0);
-        assert.equal(actual_taker_amount, _price, 'taker amount error');
-        let actual_maker_amount = BigNumber(maker_balance2.toString()).minus(maker_balance1.toString()).toFixed(0);
-        let cal_maker_amount = BigNumber(_price)
-            .multipliedBy(10000 - creatorEarningsRate - feeRate)
-            .dividedBy(10000)
-            .toFixed(0);
-        assert.equal(actual_maker_amount, cal_maker_amount, 'maker amount error');
-        let actual_platform = (await market.platformFee(contracts.payToken)).toString();
-        let cal_platform = BigNumber(_price).multipliedBy(feeRate).dividedBy(10000).plus(before_platform).toFixed(0);
-        assert.equal(actual_platform, cal_platform, 'platform amount error');
-        let actual_creator = (await market.creatorEarning(_token, contracts.payToken)).toString();
-        let cal_creator = BigNumber(_price).multipliedBy(creatorEarningsRate).dividedBy(10000).plus(before_creator).toFixed(0);
-        assert.equal(actual_creator, cal_creator, 'creator amount error');
-        let creator_balance1 = await usdt.balanceOf(accounts[2]);
-        await market.creatorEarningWithdraw(_token, contracts.payToken, {
-            from: accounts[2],
-        });
-        let creator_balance2 = await usdt.balanceOf(accounts[2]);
-        let actual_creator2 = BigNumber(creator_balance2.toString()).minus(creator_balance1.toString()).toFixed(0);
-        assert.equal(actual_creator2, cal_creator, 'creator amount error');
     });
     it('eip5187-provideFt-sale', async function () {
         let ticket = await Ticket.at(contracts.Ticket);
@@ -156,45 +121,9 @@ contract('testEip5187', function (accounts) {
         let _data = web3.eth.abi.encodeParameters(['uint256', 'uint256'], [amount, _period]);
         let _isProvideNft = true;
         await market.make(_token, _tokenId, _endTime, _payToken, _price, _type, _data, _isProvideNft);
-        let taker_balance1 = await usdt.balanceOf(accounts[1]);
-        let period = 86400 * 2;
-        let transfer_amount = 2;
-        await market.offer(orderId, [BigNumber(50).multipliedBy(1e18).toFixed(0), parseInt(Date.now() / 1000) + 200, period, transfer_amount], {
+        await market.take(orderId, accounts[1], {
             from: accounts[1],
         });
-        _price = BigNumber(50).multipliedBy(1e18).toFixed(0);
-        let maker_balance1 = await usdt.balanceOf(accounts[0]);
-        let before_platform = (await market.platformFee(contracts.payToken)).toString();
-        let before_creator = (await market.creatorEarning(_token, contracts.payToken)).toString();
-        const now = parseInt(Date.now() / 1000);
-        await market.offerAccept(accounts[1], orderId);
-        assert.equal(await ticket.balanceOf(accounts[1], _tokenId), '2', 'nft owner error');
-        assert.equal(await ticket.balanceOf(accounts[0], _tokenId), '8', 'nft owner error');
-        let ret = BigNumber(Math.abs((await ticket.expireAt(_tokenId, accounts[1])).toNumber() - now - period)).lte(5);
-        assert.equal(ret, true, 'nft expire error');
-        let taker_balance2 = await usdt.balanceOf(accounts[1]);
-        let maker_balance2 = await usdt.balanceOf(accounts[0]);
-        let actual_taker_amount = BigNumber(taker_balance1.toString()).minus(taker_balance2.toString()).toFixed(0);
-        assert.equal(actual_taker_amount, _price, 'taker amount error');
-        let actual_maker_amount = BigNumber(maker_balance2.toString()).minus(maker_balance1.toString()).toFixed(0);
-        let cal_maker_amount = BigNumber(_price)
-            .multipliedBy(10000 - creatorEarningsRate - feeRate)
-            .dividedBy(10000)
-            .toFixed(0);
-        assert.equal(actual_maker_amount, cal_maker_amount, 'maker amount error');
-        let actual_platform = (await market.platformFee(contracts.payToken)).toString();
-        let cal_platform = BigNumber(_price).multipliedBy(feeRate).dividedBy(10000).plus(before_platform).toFixed(0);
-        assert.equal(actual_platform, cal_platform, 'platform amount error');
-        let actual_creator = (await market.creatorEarning(_token, contracts.payToken)).toString();
-        let cal_creator = BigNumber(_price).multipliedBy(creatorEarningsRate).dividedBy(10000).plus(before_creator).toFixed(0);
-        assert.equal(actual_creator, cal_creator, 'creator amount error');
-        let creator_balance1 = await usdt.balanceOf(accounts[2]);
-        await market.creatorEarningWithdraw(_token, contracts.payToken, {
-            from: accounts[2],
-        });
-        let creator_balance2 = await usdt.balanceOf(accounts[2]);
-        let actual_creator2 = BigNumber(creator_balance2.toString()).minus(creator_balance1.toString()).toFixed(0);
-        assert.equal(actual_creator2, cal_creator, 'creator amount error');
     });
     it('eip5187-provideFt-rental', async function () {
         let ticket = await Ticket.at(contracts.Ticket);
@@ -234,8 +163,9 @@ contract('testEip5187', function (accounts) {
         await market.take(orderId, constants.AddressZero, {
             from: accounts[0],
         });
-        assert.equal((await ticket.balanceOf(toUser, _tokenId)).toString(), '5', 'nft owner error');
-        assert.equal((await ticket.balanceOf(accounts[0], _tokenId)).toString(), '3', 'nft owner error');
+        assert.equal((await ticket.balanceOf(toUser, _tokenId)).toString(), '5', 'nft amount error');
+        assert.equal((await ticket.balanceOf(accounts[0], _tokenId)).toString(), '2', 'nft amount error');
+        assert.equal((await ticket.balanceOf(accounts[1], _tokenId)).toString(), '3', 'nft amount error');
         const ret = BigNumber(Math.abs((await ticket.expireAt(_tokenId, toUser)).toString() - now - _period)).lte(5);
         assert.equal(ret, true, 'nft expire error');
         let taker_balance2 = await usdt.balanceOf(toUser);
@@ -293,43 +223,6 @@ contract('testEip5187', function (accounts) {
         let _data = web3.eth.abi.encodeParameters(['uint256', 'uint256'], [2, _expireAt]);
         let _isProvideNft = true;
         await market.make(_token, _tokenId, _endTime, _payToken, _price, _type, _data, _isProvideNft);
-        let taker_balance1 = await usdt.balanceOf(accounts[1]);
-        let period = 0;
-        let transfer_amount = 0;
-        await market.offer(orderId, [BigNumber(50).multipliedBy(1e18).toFixed(0), parseInt(Date.now() / 1000) + 200, period, transfer_amount], {
-            from: accounts[1],
-        });
-        _price = BigNumber(50).multipliedBy(1e18).toFixed(0);
-        let maker_balance1 = await usdt.balanceOf(accounts[0]);
-        let before_platform = (await market.platformFee(contracts.payToken)).toString();
-        let before_creator = (await market.creatorEarning(_token, contracts.payToken)).toString();
-        await market.offerAccept(accounts[1], orderId);
-        assert.equal((await ticket.balanceOf(accounts[1], _tokenId)).toString(), '2', 'nft owner error');
-        assert.equal((await ticket.balanceOf(accounts[0], _tokenId)).toString(), '0', 'nft owner error');
-        assert.equal((await ticket.expireAt(_tokenId, accounts[1])).toString(), _expireAt, 'nft owner error');
-        let taker_balance2 = await usdt.balanceOf(accounts[1]);
-        let maker_balance2 = await usdt.balanceOf(accounts[0]);
-        let actual_taker_amount = BigNumber(taker_balance1.toString()).minus(taker_balance2.toString()).toFixed(0);
-        assert.equal(actual_taker_amount, _price, 'taker amount error');
-        let actual_maker_amount = BigNumber(maker_balance2.toString()).minus(maker_balance1.toString()).toFixed(0);
-        let cal_maker_amount = BigNumber(_price)
-            .multipliedBy(10000 - creatorEarningsRate - feeRate)
-            .dividedBy(10000)
-            .toFixed(0);
-        assert.equal(actual_maker_amount, cal_maker_amount, 'maker amount error');
-        let actual_platform = (await market.platformFee(contracts.payToken)).toString();
-        let cal_platform = BigNumber(_price).multipliedBy(feeRate).dividedBy(10000).plus(before_platform).toFixed(0);
-        assert.equal(actual_platform, cal_platform, 'platform amount error');
-        let actual_creator = (await market.creatorEarning(_token, contracts.payToken)).toString();
-        let cal_creator = BigNumber(_price).multipliedBy(creatorEarningsRate).dividedBy(10000).plus(before_creator).toFixed(0);
-        assert.equal(actual_creator, cal_creator, 'creator amount error');
-        let creator_balance1 = await usdt.balanceOf(accounts[2]);
-        await market.creatorEarningWithdraw(_token, contracts.payToken, {
-            from: accounts[2],
-        });
-        let creator_balance2 = await usdt.balanceOf(accounts[2]);
-        let actual_creator2 = BigNumber(creator_balance2.toString()).minus(creator_balance1.toString()).toFixed(0);
-        assert.equal(actual_creator2, cal_creator, 'creator amount error');
     });
     it('eip5187-provideFt-sublet', async function () {
         let ticket = await Ticket.at(contracts.Ticket);

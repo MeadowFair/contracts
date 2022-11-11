@@ -22,8 +22,6 @@ contract NftMarket is OwnableUpgradeable {
         bool isProvideNft;
         bool valid;
     }
-    //offer => orderId => [expired,price,period,amount]
-    mapping(address => mapping(uint256 => uint256[4])) public offers;
     OrderObject[] public orders;
     //token => tokenId => user => orderId
     mapping(address => mapping(uint256 => mapping(address => uint256)))
@@ -50,15 +48,6 @@ contract NftMarket is OwnableUpgradeable {
     event OrderDealt(
         uint256 _orderId,
         address _buyer,
-        uint256 _fee,
-        uint256 _creatorEarning
-    );
-    event Offer(uint256 _orderId, address _buyer, uint256[4] _data);
-    event OfferCancel(uint256 _orderId, address _buyer);
-    event OfferDealt(
-        uint256 _orderId,
-        address _buyer,
-        uint256 _price,
         uint256 _fee,
         uint256 _creatorEarning
     );
@@ -101,7 +90,11 @@ contract NftMarket is OwnableUpgradeable {
     ) external payable {
         id++;
         require(allowToken[_payToken], "payToken error");
-        require(makerOrders[_token][_tokenId][msg.sender] == 0, "order exists");
+        uint256 _orderId = makerOrders[_token][_tokenId][msg.sender];
+        require(
+            _orderId == 0 || orders[_orderId].endTime < block.timestamp,
+            "order exists"
+        );
         require(!nftInfos[_token].forbid, "token forbid");
         Helper.check(
             _type,
@@ -130,7 +123,7 @@ contract NftMarket is OwnableUpgradeable {
         emit Order(id, msg.sender, _token, _tokenId);
     }
 
-    function cancel(uint256 _orderId) external {
+    function cancel(uint256 _orderId) public {
         OrderObject storage _order = orders[_orderId];
         require(msg.sender == _order.maker, "caller error");
         require(_order.valid, "invalid order");
@@ -171,6 +164,18 @@ contract NftMarket is OwnableUpgradeable {
         } else {
             _from = msg.sender;
             _to = _order.maker;
+            makerOrders[_order.token][_order.tokenId][_order.maker] = 0;
+            uint256 _oid = makerOrders[_order.token][_order.tokenId][
+                msg.sender
+            ];
+            if (_oid > 0) {
+                OrderObject memory _maker_order = orders[_oid - 1];
+                if (
+                    _maker_order.endTime > block.timestamp && _maker_order.valid
+                ) {
+                    cancel(_oid - 1);
+                }
+            }
         }
         Helper.transferNft(
             _order._type,
@@ -185,7 +190,6 @@ contract NftMarket is OwnableUpgradeable {
             payable(_from),
             _order.price - _fee - _creatorEarnings
         );
-        makerOrders[_order.token][_order.tokenId][_order.maker] = 0;
     }
 
     function _settleFee(
@@ -206,81 +210,6 @@ contract NftMarket is OwnableUpgradeable {
         uint256 _fee = (_price * _feeRate) / 10000;
         platformFee[_payToken] += _fee;
         return (_fee, _creatorEarnings);
-    }
-
-    function offerAccept(address _user, uint256 _orderId) external {
-        OrderObject storage _order = orders[_orderId];
-        uint256[4] storage _data = offers[_user][_orderId];
-        require(_order.valid, "invalid order");
-        require(_order.isProvideNft, "require provide nft");
-        require(_data[0] > 0, "price is zero");
-        require(msg.sender == _order.maker, "caller error");
-        require(_data[1] > block.timestamp, "transaction timed out");
-        _order.valid = false;
-        (uint256 _fee, uint256 _creatorEarnings) = _settleFee(
-            _order.token,
-            _data[0],
-            _order.payToken
-        );
-        emit OfferDealt(_orderId, msg.sender, _data[0], _fee, _creatorEarnings);
-        Helper.safeTransfer(
-            _order.payToken,
-            payable(msg.sender),
-            _data[0] - _fee - _creatorEarnings
-        );
-        bytes memory nft_data = _order.data;
-        if (_order._type == 1) {
-            nft_data = abi.encode(_data[2]);
-        } else if (_order._type == 4) {
-            nft_data = abi.encode(_data[3], _data[2]);
-        }
-        Helper.transferNft(
-            _order._type,
-            _order.token,
-            _order.tokenId,
-            nft_data,
-            msg.sender,
-            _user
-        );
-        _data[0] = 0;
-        makerOrders[_order.token][_order.tokenId][_order.maker] = 0;
-    }
-
-    /**
-    uint256[2] _data = [price,expired,period,amount];
-    * */
-    function offer(uint256 _orderId, uint256[4] calldata _data)
-        external
-        payable
-    {
-        OrderObject storage _order = orders[_orderId];
-        require(_order.valid, "invalid order");
-        require(_order.isProvideNft, "provide nft");
-        require(_data[0] > 0, "price is zero");
-        require(_data[1] > block.timestamp, "time is less current");
-        require(offers[msg.sender][_orderId][0] == 0, "offer repeated");
-        if (_order._type == 1) {
-            require(_data[2] > 0, "period is zero");
-        } else if (_order._type == 4) {
-            require(_data[2] > 0, "period is zero");
-            require(_data[3] > 0, "amount is zero");
-        }
-        if (_order.payToken == address(0)) {
-            require(msg.value == _data[0], "token amount error");
-        } else {
-            Helper.safeTransferFrom(_order.payToken, msg.sender, _data[0]);
-        }
-        offers[msg.sender][_orderId] = _data;
-        emit Offer(_orderId, msg.sender, _data);
-    }
-
-    function offerCancel(uint256 _orderId) external payable {
-        OrderObject memory _order = orders[_orderId];
-        uint256 _price = offers[msg.sender][_orderId][0];
-        require(_price > 0, "price is zero");
-        offers[msg.sender][_orderId][0] = 0;
-        Helper.safeTransfer(_order.payToken, payable(msg.sender), _price);
-        emit OfferCancel(_orderId, msg.sender);
     }
 
     function setAllowToken(address _token, bool _allow) external onlyOwner {
