@@ -1,5 +1,5 @@
 {
-  "name": "cds_contract",
+  "name": "meadowfair_contract",
   "version": "1.0.0",
   "description": "",
   "main": "truffle-config.js",
@@ -8,10 +8,6 @@
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git@huangtao163:cryptoera2022/cds_contract.git"
   },
   "dependencies": {
     "@openzeppelin/contracts": "^4.7.3",

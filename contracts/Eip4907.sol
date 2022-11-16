@@ -89,7 +89,7 @@ contract Eip4907 is ERC721, IERC4907 {
         address from,
         address to,
         uint256 tokenId
-    ) internal virtual override {
+    ) internal override {
         super._beforeTokenTransfer(from, to, tokenId);
 
         if (from != to && _users[tokenId].user != address(0)) {

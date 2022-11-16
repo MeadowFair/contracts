@@ -164,7 +164,6 @@ contract NftMarket is OwnableUpgradeable {
         } else {
             _from = msg.sender;
             _to = _order.maker;
-            makerOrders[_order.token][_order.tokenId][_order.maker] = 0;
             uint256 _oid = makerOrders[_order.token][_order.tokenId][
                 msg.sender
             ];
@@ -177,6 +176,7 @@ contract NftMarket is OwnableUpgradeable {
                 }
             }
         }
+        makerOrders[_order.token][_order.tokenId][_order.maker] = 0;
         Helper.transferNft(
             _order._type,
             _order.token,
