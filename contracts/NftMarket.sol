@@ -92,7 +92,7 @@ contract NftMarket is OwnableUpgradeable {
         require(allowToken[_payToken], "payToken error");
         uint256 _orderId = makerOrders[_token][_tokenId][msg.sender];
         require(
-            _orderId == 0 || orders[_orderId].endTime < block.timestamp,
+            _orderId == 0 || orders[_orderId - 1].endTime < block.timestamp,
             "order exists"
         );
         require(!nftInfos[_token].forbid, "token forbid");
