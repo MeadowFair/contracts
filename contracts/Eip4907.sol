@@ -14,9 +14,10 @@ contract Eip4907 is ERC721, IERC4907 {
 
     event Mint(uint256 _tokenId);
 
-    constructor(string memory name_, string memory symbol_)
-        ERC721(name_, symbol_)
-    {}
+    constructor(
+        string memory name_,
+        string memory symbol_
+    ) ERC721(name_, symbol_) {}
 
     function _baseURI() internal pure override returns (string memory) {
         return "ipfs://Qmb6HgHH89GCdkGgJyEVBGTgSMQUnFkxSsc1QGp5XcedVq/";
@@ -63,23 +64,16 @@ contract Eip4907 is ERC721, IERC4907 {
     /// @dev The zero value indicates that there is no user
     /// @param tokenId The NFT to get the user expires for
     /// @return The user expires for this NFT
-    function userExpires(uint256 tokenId)
-        public
-        view
-        virtual
-        returns (uint256)
-    {
+    function userExpires(
+        uint256 tokenId
+    ) public view virtual returns (uint256) {
         return _users[tokenId].expires;
     }
 
     /// @dev See {IERC165-supportsInterface}.
-    function supportsInterface(bytes4 interfaceId)
-        public
-        view
-        virtual
-        override
-        returns (bool)
-    {
+    function supportsInterface(
+        bytes4 interfaceId
+    ) public view virtual override returns (bool) {
         return
             interfaceId == type(IERC4907).interfaceId ||
             super.supportsInterface(interfaceId);
@@ -88,10 +82,10 @@ contract Eip4907 is ERC721, IERC4907 {
     function _beforeTokenTransfer(
         address from,
         address to,
-        uint256 tokenId
+        uint256 tokenId,
+        uint256 batchSize
     ) internal override {
-        super._beforeTokenTransfer(from, to, tokenId);
-
+        super._beforeTokenTransfer(from, to, tokenId, batchSize);
         if (from != to && _users[tokenId].user != address(0)) {
             delete _users[tokenId];
             emit UpdateUser(tokenId, address(0), 0);
